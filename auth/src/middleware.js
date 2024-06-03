@@ -9,14 +9,13 @@ const requireAuthUser = (req, res, next) => {
     }
 
     // Check JWT exist & is verified
-    jwt.verify(token, (process.env.SECRET_STRING), (err) => {
+    jwt.verify(token, process.env.SECRET_STRING, (err, decodedToken) => {
         if (err) {
             return res.status(400).json({ message: 'Anda tidak memiliki hak untuk mengakses request ini!' });
         }
-        // console.log(decodedToken);
+        req.user = decodedToken; // Set the decoded token to req.user
         return next();
     });
-    return 0;
 };
 
 const requireAuthAdmin = (req, res, next) => {

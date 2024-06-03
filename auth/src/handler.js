@@ -33,7 +33,7 @@ exports.signupPost = async(req, res) => {
     const id = nanoid(16);
 
     // Validate inputs
-    if (!email || !username || !password || !age || !city || !gender || !height || !weight) {
+    if (!email || !username || !password || !age || !city || !height || !weight) {
         return res.status(400).json({
             status: 'Gagal',
             message: 'Gagal menambah user baru, semua field diperlukan!',
@@ -69,7 +69,7 @@ exports.signupPost = async(req, res) => {
 
     // Insert user and related data
     await db.promise().query('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, email, username, hashedPassword, age, city, gender, height, weight, bmi]);
-    await db.promise().query('INSERT INTO datas (user_id, age, gender, city, bmi) VALUES (?, ?, ?, ?, ?)', [id, age, gender, city, bmi]);
+    //await db.promise().query('INSERT INTO datas (user_id, age, gender, city, bmi) VALUES (?, ?, ?, ?, ?)', [id, age, gender, city, bmi]);
 
     return res.status(201).json({
         status: 'Sukses',
@@ -77,6 +77,54 @@ exports.signupPost = async(req, res) => {
         data: { userId: id },
     });
 };
+
+// Function to add daily user data
+exports.addDailyData = async(req, res) => {
+    const { stress_level, sleep_duration } = req.body;
+    const userId = req.user.id;
+
+    if (stress_level === undefined || sleep_duration === undefined) {
+        return res.status(400).json({ message: 'Stress level dan sleep duration diperlukan.' });
+    }
+
+    // Retrieve the user's existing users from the datas table
+    const [rows] = await db.promise().query('SELECT age, city, gender, bmi FROM users WHERE id = ? ORDER BY id DESC LIMIT 1', [userId]);
+
+    if (rows.length === 0) {
+        return res.status(404).json({ message: 'Data pengguna tidak ditemukan.' });
+    }
+
+    const { age, city, gender, bmi } = rows[0];
+
+    await db.promise().query(
+        'INSERT INTO datas (user_id, age, city, gender, bmi, stress_level, sleep_duration) VALUES (?, ?, ?, ?, ?, ?, ?)', [userId, age, city, gender, bmi, stress_level, sleep_duration]
+    );
+
+    return res.status(201).json({
+        message: 'Data harian berhasil ditambahkan.',
+        data: { userId, age, city, gender, bmi, stress_level, sleep_duration }
+    });
+};
+
+// Function to get user's datas
+exports.getUserData = async(req, res) => {
+    const userId = req.user.id; // Get user ID from the authenticated request
+    try {
+        // Retrieve user's data from the database
+        const [userData] = await db.promise().query('SELECT * FROM datas WHERE user_id = ?', [userId]);
+
+        if (userData.length === 0) {
+            return res.status(404).json({ message: 'User data not found.' });
+        }
+
+        // Return the user's data in the response
+        return res.status(200).json({ message: 'User data retrieved successfully.', data: userData });
+    } catch (error) {
+        console.error('Error fetching user data:', error);
+        return res.status(500).json({ message: 'Internal server error.' });
+    }
+};
+
 
 // Function to register a new admin
 exports.signupAdminPost = async(req, res) => {
